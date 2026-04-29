@@ -1,0 +1,33 @@
+﻿FUNCTION_BLOCK protect_on_off_singl
+VAR_INPUT
+	man_set: BOOL;  // Ввести защиту
+	man_reset: BOOL; // Вывести защиту
+	terminate_time: REAL; // Время автоввода (0 — отключено)
+END_VAR
+VAR_IN_OUT
+	protect_execute: BOOL; // Состояние: TRUE — введена, FALSE — выведена
+END_VAR
+VAR
+	termination_ton: TON;
+	ton_active: BOOL;
+END_VAR
+
+// === IMPLEMENTATION ===
+
+IF terminate_time > 0 THEN
+	termination_ton(
+		IN := protect_execute,
+		PT := REAL_TO_TIME(terminate_time * 1000),
+		Q => ton_active
+	);
+END_IF
+
+// Установка (ввести защиту)
+IF man_set THEN
+	protect_execute := TRUE;
+END_IF
+
+// Сброс (вывести защиту) или автоввод по таймеру
+IF man_reset OR ton_active THEN
+	protect_execute := FALSE;
+END_IF

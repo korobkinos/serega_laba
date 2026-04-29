@@ -1,0 +1,11 @@
+﻿{attribute 'qualified_only'} 
+
+VAR_GLOBAL
+	AI_IN_ERR						:	 BYTE;	// ошибки AI								
+	AI_IN_RAW						:	 REAL;	// аналоги до шкалирования
+	AI_IN_SCALE					:	 REAL;	// аналоги после шкалирования
+	AI_IN_WARN_MIN			:	 BOOL;	// предупреждение - MIN
+	AI_IN_WARN_MAX		:	 BOOL;	// предупреждение - MAX
+	AI_IN_ALARM_MIN		:	 BOOL;	// авария - MIN
+	AI_IN_ALARM_MAX		:	 BOOL;	// авария - MAX
+END_VAR

@@ -1,0 +1,23 @@
+﻿{attribute 'qualified_only'}
+
+VAR_GLOBAL PERSISTENT RETAIN
+	(***********************************************
+	 * МАСШТАБИРОВАНИЕ АНАЛОГОВОГО СИГНАЛА
+	 ***********************************************)
+	SENSOR_AI_SETTINGS : SENSOR_AI_SETTINGS;
+
+	(***********************************************
+	 * ЗАЩИТА ПО РАЗРЕЖЕНИЮ В ТОПКЕ КОТЛА
+	 ***********************************************)
+	// TRUE - защита используется; FALSE - защита отключена из алгоритма
+	protect_enable :  BOOL := TRUE;
+
+	// Команды оператора/SCADA:
+	// protect_execute_set[0]   - ввести защиту
+	// protect_execute_reset[0] - вывести защиту
+	protect_execute_set   :  BOOL;
+	protect_execute_reset :  BOOL;
+
+	// Задержка срабатывания защиты, сек
+	protect_delay_time :  REAL :=3.0;
+END_VAR

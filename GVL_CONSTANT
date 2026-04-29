@@ -1,6 +1,18 @@
-{attribute 'global_init_slot' := '400'} // для определения порядка инициализации переменных
+﻿{attribute 'global_init_slot' := '400'}
 VAR_GLOBAL CONSTANT
-	burner_protect_quantity					:		WORD:=15;			//Количество горелочных защит
-	in_out_quantity							:		WORD:=16;			//кол-во физических аналоговых сигналов в системе
-	//ai_quantity								:	WORD:=12; //всего AI в системе	
+	// Индексы массива SENSOR[].VALUE[]
+	min_value	: WORD := 0;
+	max_value	: WORD := 1;
+	min_scale	: WORD := 2;
+	max_scale	: WORD := 3;
+	min_warning	: WORD := 4;
+	max_warning	: WORD := 5;
+	min_alarm	: WORD := 6;
+	max_alarm	: WORD := 7;
+	average		: WORD := 8;
+	sensor_num	: WORD := 9;
+
+	// Индексы сигналов
+	furnace_draft : WORD := 0; // Разрежение в топке котла
+	furnace_draft_low_p : WORD := 0; // Защита по снижению разрежения
 END_VAR

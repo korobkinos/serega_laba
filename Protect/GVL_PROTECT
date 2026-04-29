@@ -1,0 +1,12 @@
+﻿{attribute 'qualified_only'}
+VAR_GLOBAL
+	protect_alarm_reset				:	BOOL; //квитирование защиты
+	main_alarm								:	BOOL; //сработала любая защита (плакат)
+	//защиты
+	protect_signal							:	 BOOL; //состояние датчиков защит	
+ 	protect_control						:	 BOOL; //защита взяна на контроль
+	protect_alarm_out					:	 BOOL; //сработала защита
+	protect_warning_out				:	 BOOL; //сработало предупреждение
+	protect_execure_state_out	:	 BOOL; //состояние введена-выведена
+		
+END_VAR

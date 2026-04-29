@@ -1,7 +1,0 @@
-TYPE GAS_AIR_PROPORTION :
-STRUCT
-	GAS_VALUE: ARRAY[1..10] OF REAL:= [0,0,0,0,0,0,0,0,0,100];//Значение давления газа
-	AIR_VALUE: ARRAY[1..10] OF REAL:= [0,0,0,0,0,0,0,0,0,100];//Значение давления воздуха
-	SHIBER_VALUE: ARRAY[1..10] OF REAL:= [0,0,0,0,0,0,0,0,0,100];//Процент открытия ШВ
-END_STRUCT
-END_TYPE

@@ -1,4 +1,4 @@
-{attribute 'qualified_only'}
+﻿{attribute 'qualified_only'}
 VAR_GLOBAL
 	Boiler_status: WORD; //состояние котла
 END_VAR

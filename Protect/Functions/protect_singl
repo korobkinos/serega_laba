@@ -1,0 +1,55 @@
+﻿FUNCTION_BLOCK protect_singl
+VAR_INPUT
+	signal_groupe_param: BOOL; // Аварийный сигнал датчика
+	ctrl_on: BOOL;             // Контроль включён
+	protect_execute: BOOL;     // Защита введена (TRUE — введена)
+	sbros_av: BOOL;            // Сброс аварии
+END_VAR
+VAR_OUTPUT
+	protect_active: BOOL; // Команда защиты (с учётом задержки)
+	alarm_active: BOOL;   // Аварийное сообщение
+END_VAR
+VAR_IN_OUT
+	delay_time: REAL; // Задержка срабатывания, сек
+END_VAR
+VAR
+	protect_ton: TON;
+	protect_ton_active: BOOL;
+	protect_rs: RS;
+	alarm_ton: TON;
+	alarm_ton_active: BOOL;
+	alarm_rs: RS;
+	control_r_trig: R_TRIG;
+	execute_r_trig: R_TRIG;
+END_VAR
+
+// === IMPLEMENTATION ===
+
+control_r_trig(clk := ctrl_on);
+execute_r_trig(clk := NOT protect_execute);
+
+// Задержка срабатывания защиты (защита выведена — предупреждение)
+protect_ton(
+	IN := signal_groupe_param AND ctrl_on AND NOT protect_execute,
+	PT := REAL_TO_TIME(delay_time * 1000),
+	Q => protect_ton_active
+);
+
+protect_rs(
+	SET := protect_ton_active,
+	RESET1 := sbros_av OR control_r_trig.Q OR execute_r_trig.Q,
+	Q1 => protect_active
+);
+
+// Задержка аварийного сообщения (защита введена — авария)
+alarm_ton(
+	IN := signal_groupe_param AND ctrl_on AND protect_execute,
+	PT := REAL_TO_TIME(delay_time * 1000),
+	Q => alarm_ton_active
+);
+
+alarm_rs(
+	SET := alarm_ton_active,
+	RESET1 := sbros_av OR control_r_trig.Q OR execute_r_trig.Q,
+	Q1 => alarm_active
+);
