@@ -1,0 +1,19 @@
+FUNCTION_BLOCK boiler_mode_select
+VAR_INPUT
+	in : ARRAY[1..16] OF BOOL;
+END_VAR
+VAR_OUTPUT
+	state_word : WORD;
+END_VAR
+VAR
+	i : INT;
+END_VAR
+
+state_word := 0;
+
+FOR i := 16 TO 1 BY -1 DO
+	IF in[i] THEN
+		state_word := INT_TO_WORD(i);
+		EXIT;
+	END_IF;
+END_FOR;

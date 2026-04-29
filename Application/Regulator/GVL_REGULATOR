@@ -1,0 +1,25 @@
+{attribute 'qualified_only'}
+
+VAR_GLOBAL
+	//1- газ; 2- воздух; 3- положение ШВ
+	pid_ON					: ARRAY[0..PID_quantity] OF BOOL; //Включение регулятора
+	pid_control				: ARRAY[0..PID_quantity] OF PID_CONTROL;
+	
+	air_percent_set_point	: REAL;//Уставка задания для регулятора воздуха (%)
+	air_set_point			: REAL;//Уставка задания для регулятора воздуха (давление)
+	
+	min_power_impulse_up	: BOOL; //импульс "больше" выход на минимальную мощность
+	min_power_active		: BOOL;//ЗГ вышла на минимальную мощность
+	min_power_start			: BOOL;//Запустить выход ЗГ на минимальную мощность
+	min_power_stop			: BOOL;//Остановить выход ЗГ на минимальную мощность
+	min_power_error			: BOOL;//Ошибка выхода на минимальную мощность (более 30 секунд)
+	min_power_pid_manual	: BOOL;//Установка регулятора газа горелки в ручку от минимальной мощности
+	min_power_pid_auto		: BOOL;//Установка регулятора газа горелки в автомат от минимальной мощности
+	min_power_limit_active	: BOOL;//Ограничение импульсов меньше регулятора газа от минимальной мощности
+	UP_limit_active			: BOOL;//Ограничение импульсов больше регулятора газа от минимальной мощности
+ 	
+	reg_valve: ARRAY [0..counter_armature] OF PID_CONTROL;
+	
+END_VAR
+
+

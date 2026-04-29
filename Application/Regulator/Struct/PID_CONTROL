@@ -1,0 +1,17 @@
+TYPE PID_CONTROL :
+STRUCT			
+	//входы
+	man_up				: BOOL; //больше
+	man_down			: BOOL; //меньше
+	man_set				: BOOL;//Установка в ручной режим горелочных регуляторов 
+	auto_set			: BOOL;//Установка в автомат горелочных регуляторов по смене ведущей горелки
+	open_state			: BOOL; //ИМ открыт
+	closed_state		: BOOL; //ИМ закрыт
+	//выходы	
+	up_out				: BOOL;//Больше регулятора газа горелки №
+	down_out			: BOOL;//Меньше регулятора газа горелки №
+		
+	trend				: PID_TREND_DATA;	
+		
+END_STRUCT
+END_TYPE

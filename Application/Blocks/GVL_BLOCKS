@@ -1,0 +1,4 @@
+{attribute 'qualified_only'}
+VAR_GLOBAL
+	valves_blocks: ARRAY[0..counter_armature] OF BOOL;
+END_VAR

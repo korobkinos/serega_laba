@@ -1,0 +1,11 @@
+//{attribute 'qualified_only'}
+VAR_GLOBAL
+	PZK_1_p					:	WORD:=0;	//0-Закрытия ПЗК-1														
+	PZK_2_p					:	WORD:=1;	//1-Закрытия ПЗК-2														
+	ignition_p				:	WORD:=2;	//2-Погасание запальника														
+	pilot_p					:	WORD:=3;	//3-Погасание растопочной														
+	air_burner_p			:	WORD:=4;	//4-давление воздуха перед горелкой	(MIN)													
+	gas_burner_p			:	WORD:=5;	//5-давление газа перед горелкой														
+	vent_burner_p			:	WORD:=6;	//6-останов вентилятора перед горелкой														
+	gas_burner_up_p			:	WORD:=7;	//8-Повышение давления газа перед горелкой				
+END_VAR

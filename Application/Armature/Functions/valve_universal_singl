@@ -1,0 +1,126 @@
+FUNCTION_BLOCK valve_universal_singl
+VAR_INPUT
+	up					:	BOOL;
+	down				:	BOOL;
+	open				:	BOOL;
+	closed				:	BOOL;
+	stop				:	BOOL;
+	set_special			:	BOOL;
+	
+	set_auto			:	BOOL;
+	set_manual			:	BOOL;
+	block				:	BOOL;
+	
+
+	open_state_di		:	BOOL;
+	closed_state_di		:	BOOL;
+	special_state_di	:	BOOL;
+	
+	wait_time			:	REAL;
+	pull_time			:	REAL;
+	off_time			:	REAL;
+	
+	one_state			:	BOOL;		//Клапан с одним состоянием
+	block_mode			:	BOOL;		//0-Блокировка открытия, 1- блокировка закрытия
+	load_state			:	BOOL;		//Нужно только для имитации, чтобы не ограничивалось 0-100 для регулятора нагрузки
+	imitation_mode		:	BOOL;		//Включена имитация арматуры
+END_VAR
+
+VAR_OUTPUT
+	auto_mode			:	BOOL;
+	control_out			:	BOOL;	
+	open_state			:	BOOL;
+	closed_state		:	BOOL;
+	up_out				:	BOOL;
+	down_out			:	BOOL;
+	error				:	BOOL;
+	move_out			:	BOOL;
+	state				:	DWORD;
+	percent_imitation	:	REAL;
+END_VAR
+VAR
+	valve_singl			:	valve_singl;
+	shiber_singl		:	shiber_singl;
+	control_select		:	control_select;
+	value_generator		:	value_generator;
+	open_state_fb, closed_state_fb: BOOL; //
+END_VAR
+
+percent_imitation := 0;
+
+// По умолчанию используем реальные входы
+open_state_fb := open_state_di;
+closed_state_fb := closed_state_di;
+
+IF one_state THEN
+	closed_state_fb := NOT open_state_fb;
+END_IF
+
+control_select(
+	set_manual := set_manual,
+	set_auto := set_auto,
+	mode := auto_mode
+);
+
+shiber_singl(
+	up := up AND NOT (block AND NOT block_mode),
+	down := down AND NOT (block AND block_mode),
+	open := open AND NOT (block AND NOT block_mode),
+	closed := closed AND NOT (block AND block_mode),
+	stop := stop,
+	special_set := set_special,
+	open_state := open_state_fb,
+	closed_state := closed_state_fb,
+	special_state := special_state_di,
+	wait_time := wait_time,
+	pull_time := pull_time,
+	open_out => up_out,
+	closed_out => down_out,
+	state => state
+);
+
+valve_singl(
+	start_open := open,
+	start_closed := closed,
+	block := block,
+	open_in := open_state_fb,
+	off_time := off_time,
+	control_out := control_out
+);
+
+// Имитация только после расчёта выходов
+IF imitation_mode AND NOT load_state THEN
+
+	IF one_state THEN
+		// однокомандный клапан
+		value_generator(
+			up := FALSE,
+			down := FALSE,
+			open := control_out,
+			closed := NOT control_out,
+			set_time := wait_time / 2
+		);
+	ELSE
+		// реверсивный ИМ
+		value_generator(
+			up := up_out,
+			down := down_out,
+			open := FALSE,
+			closed := FALSE,
+			set_time := wait_time / 2
+		);
+	END_IF;
+
+	open_state_fb := value_generator.open_state;
+	closed_state_fb := value_generator.closed_state;
+	percent_imitation := value_generator.percent_value;
+END_IF
+
+open_state := open_state_fb;
+closed_state := closed_state_fb;
+
+error := valve_singl.closed_warning
+      OR shiber_singl.error
+      OR (open_state_fb AND closed_state_fb);
+
+move_out := up_out OR down_out;

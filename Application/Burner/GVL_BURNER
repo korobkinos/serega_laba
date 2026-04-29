@@ -1,0 +1,41 @@
+{attribute 'qualified_only'}
+VAR_GLOBAL
+	boiler_run								:	BOOL;			//Котёл запущен
+	boiler_in_process						:	BOOL;			//Котёл в розжиге
+	boiler_unload							:	BOOL;			//Разгрузка котла
+	mazut_enable_main						:	BOOL;			//Признак мазута Котловой
+	main_protect_alarm_reset				:	BOOL;			//Сброс котловых аварий при отключении мазута
+	burner_control_state_groupe_mask		:	ARRAY[0..31] OF BOOL:=[1,0,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,1];//Значащие биты состояния ГОРЕЛОК блока розжига горелок (GVL_CONSTANT)
+	burner_control_state					:	DWORD;			//Слово состояния блока поджига горелок. НОЛЬ - общие биты, блока поджига горелок
+	burner_block							:	BOOL;			//Блокировка старта горелки
+	burner_stop_block						:	BOOL;			//Блокировка стопа горелки
+	burner_start							:	BOOL;			//Старт горелки от внешней кнопки
+	burner_stop								:	BOOL;			//КНОПКА СТОП НА ДВЕРКЕ
+	burner_stop_imitation					:	BOOL;			//Стоп горелки из имитации котла
+	burner_work								:	BOOL;			//ГОРЕЛКА В РАБОТЕ
+	burner_work_mazut						:	BOOL;			//ГОРЕЛКА В РАБОТЕ на мазуте
+	burner_work_LAMP						:	BOOL;			//ГОРЕЛКА В РАБОТЕ НА ПЕРЕДНЕЙ ДВЕРКЕ ШКАФА
+	burner_in_process						:	BOOL;			//Горелка в процессе розжига
+	PZK_2_SET								:	BOOL;			//Включение ПЗК-2 от программы
+	PZK_2_RESET								:	BOOL;			//Вsключение ПЗК-2 от программы
+	SHIBER_UP								:	BOOL;			//Команда Шибер БОЛЬШЕ
+	SHIBER_DOWN								:	BOOL;			//Команда Шибер МЕНЬШЕ
+	shiber_open								:	BOOL;			//Открыть ШВ полностью
+	shiber_closed							:	BOOL;			//Закрыть ШВ полностью
+	shiber_stop								:	BOOL;			//Стоп ШВ
+	shiber_auto								:	BOOL;			//В автомат ШВ (регулятор давления воздуха)
+	shiber_manual							:	BOOL;			//В ручное ШВ (регулятор давления воздуха)
+	GAZ_shiber_auto							:	BOOL;			//В автомат ШВ (регулятор давления газа)
+	GAZ_shiber_manual						:	BOOL;			//В ручное ШВ (регулятор давления газа)
+	GAZ_SHIBER_UP							:	BOOL;			//Команда ЗГ БОЛЬШЕ
+	GAZ_SHIBER_DOWN							:	BOOL;			//Команда ЗГ МЕНЬШЕ
+	GAZ_shiber_open							:	BOOL;			//Открыть ЗГ полностью
+	GAZ_shiber_closed						:	BOOL;			//Закрыть ЗГ полностью
+	GAZ_shiber_stop							:	BOOL;			//Стоп ЗГ
+	PZK_1_SET								:	BOOL;			//Включение ПЗК-1 от ГОРЕЛОК
+	PZK_1_RESET								:	BOOL;			//Выключение ПЗК-1 от ГОРЕЛОК
+	IGNITION_SET							:	BOOL;			//Включение Запальника от ГОРЕЛОК
+	IGNITION_RESET							:	BOOL;			//Выключение Запальника от ГОРЕЛОК
+	ventilator_burner_on					:	BOOL;			//Включение вентилятора горелки
+	ventilator_burner_off					:	BOOL;			//Выключение вентилятора горелки
+END_VAR

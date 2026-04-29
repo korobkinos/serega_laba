@@ -1,0 +1,18 @@
+//привязка датчиков к защитам
+
+//понижение давления воздуха перед горелкой 
+protect[PROTECT_CONSTANT.air_burner_p].signal:= GVL_SCALE.AI_IN_ALARM_MIN[air_pressure_burner];
+//понижение давления газа перед горелкой 
+protect[PROTECT_CONSTANT.gas_burner_p].signal:= GVL_SCALE.AI_IN_ALARM_MIN[gas_pressure_burner];
+//повышение давления газа перед горелкой 
+protect[PROTECT_CONSTANT.gas_burner_up_p].signal:= GVL_SCALE.AI_IN_ALARM_MAX[gas_pressure_burner];
+//Самопроизвольное закрытие ПЗК-1
+protect[PROTECT_CONSTANT.PZK_1_p].signal:= GVL_VALVE.closed_state[pzk_1];
+//Самопроизвольное закрытие ПЗК-2
+protect[PROTECT_CONSTANT.PZK_2_p].signal:= GVL_VALVE.closed_state[pzk_2];
+//Погасание факела горелки
+protect[PROTECT_CONSTANT.pilot_p].signal:= GVL_VALVE.closed_state[pilot] OR NOT GVL_VALVE.open_state[pilot];
+//Погасание факела запальника
+protect[PROTECT_CONSTANT.ignition_p].signal:= GVL_VALVE.closed_state[ignit] OR NOT GVL_VALVE.open_state[ignit];
+//Отключение вентилятора
+protect[PROTECT_CONSTANT.vent_burner_p].signal:= GVL_VALVE.closed_state[vent_burner] OR NOT GVL_VALVE.open_state[vent_burner];

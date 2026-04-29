@@ -1,0 +1,59 @@
+FUNCTION_BLOCK PID_singl
+VAR_INPUT
+	sensor	:	REAL;//Датчик для регулятора
+	settings	:	PID_SETTINGS;
+	//inverse		:	BOOL;//Включение режима инверсии выходов
+	up_block	:	BOOL;
+	down_block	:	BOOL;
+	PID_EN		:	BOOL;//Включение регулятора
+	up_man		:	BOOL; //команда "больше" в ручном
+	down_man	 :	BOOL; //команда "меньше" в ручном
+END_VAR
+
+VAR_OUTPUT
+	up_out			:	BOOL;//Механизм больше
+	down_out		:	BOOL;//Механизм меньше
+	data_trend		:	PID_TREND_DATA;
+END_VAR
+VAR
+	PID						: AmPID;
+	up_local, down_local	: BOOL;
+END_VAR
+
+PID(
+	sensor:= sensor,
+	noise:= settings.value[noise],
+	SP:= settings.value[SP],
+	Kp:= settings.value[Kp],
+	Kd:= settings.value[Kd],
+	T_pause_max:= settings.value[T_pause_max],
+	Td:= settings.value[Td],
+	min_work:= settings.value[min_work],
+	max_work:= settings.value[max_work],
+	E_negative:= settings.value[E_negative],
+	E_positive:= settings.value[E_positive],
+	ON:= PID_EN,
+	luft:= SETTINGS.value[T_luft],
+	min_pause:= SETTINGS.value[min_pause],
+	);
+				
+	//инверсия
+	up_local:= PID.up;
+	down_local:= PID.down;	
+	
+	IF REAL_TO_BOOL(settings.value[inverse]) THEN
+		up_local:= PID.down;
+		down_local:= PID.up;
+	END_IF
+	
+	//команды от автомата или кнопками
+	up_out:= up_local OR (up_man AND NOT PID_EN) AND NOT up_block;
+	down_out:= down_local OR (down_man AND NOT PID_EN) AND NOT down_block;
+	
+//сохраняем для графиков
+
+data_trend.DATA[PID_TREND_SP]:= settings.value[SP];
+data_trend.DATA[PID_TREND_PV]:= sensor;
+data_trend.DATA[PID_TREND_ERR]:= PID.E_total;
+data_trend.DATA[PID_TREND_UP]:= BOOL_TO_REAL(up_local AND NOT up_block);
+data_trend.DATA[PID_TREND_DOWN]:= BOOL_TO_REAL(down_local AND NOT down_block) * -1;

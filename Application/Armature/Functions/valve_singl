@@ -1,0 +1,39 @@
+FUNCTION_BLOCK valve_singl//Блок управление по числу горелок
+VAR_INPUT
+	start_open			:	BOOL;//Запуск на открытие
+	start_closed		:	BOOL;//Запуск на закрытие
+	block				:	BOOL;//Блокировка запуска на открытие
+	open_in				:	BOOL;//Состояние открытого
+	off_time			:	REAL;//Время автоматического отключения, если 0 - не отключать автоматически
+END_VAR
+VAR_IN_OUT
+	control_out			:	BOOL;
+END_VAR
+VAR_OUTPUT
+	closed_warning		:	BOOL;//Не уход с открытого
+END_VAR
+VAR
+	closed_ton			:	ton;//Таймер автоматического отключения
+	start_closed_auto	:	BOOL;//Запуск на закрытие автоматический
+	closed_RS			:	RS;//Триггер команды закрытия
+	closed_alarm_TON	:	TON;//Таймер включения тревоги не ушёл с открытого
+END_VAR
+
+//Открытие, если нет блокировки
+IF start_open AND NOT block THEN
+	control_out:= TRUE;
+END_IF
+
+//Определение автоматического отключения
+IF off_time <> 0 THEN
+	closed_ton(IN:= control_out,PT:= REAL_TO_TIME(off_time * 1000),Q=> start_closed_auto);
+END_IF
+	
+//Закрытие всегда без блокировки
+IF start_closed OR start_closed_auto THEN
+	control_out:= FALSE;
+END_IF
+	
+//Определение не ухода с открытого
+closed_RS(SET:= start_closed, RESET1:= NOT open_in);
+closed_alarm_TON(In:= closed_RS.Q1 AND open_in, PT:= T#15000MS, Q=> closed_warning);

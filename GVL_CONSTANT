@@ -1,0 +1,6 @@
+{attribute 'global_init_slot' := '400'} // для определения порядка инициализации переменных
+VAR_GLOBAL CONSTANT
+	burner_protect_quantity					:		WORD:=15;			//Количество горелочных защит
+	in_out_quantity							:		WORD:=16;			//кол-во физических аналоговых сигналов в системе
+	//ai_quantity								:	WORD:=12; //всего AI в системе	
+END_VAR

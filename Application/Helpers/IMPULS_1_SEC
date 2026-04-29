@@ -1,0 +1,23 @@
+FUNCTION_BLOCK IMPULS_1_SEC
+VAR_INPUT
+    CLK : BOOL;
+END_VAR
+
+VAR_OUTPUT
+    Q : BOOL;
+END_VAR
+
+VAR
+    rt1 : R_TRIG;
+    tp1 : TP;
+END_VAR
+
+
+rt1(CLK := CLK);
+
+tp1(
+    IN := rt1.Q,
+    PT := T#1s
+);
+
+Q := tp1.Q;

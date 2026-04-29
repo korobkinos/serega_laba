@@ -1,0 +1,124 @@
+FUNCTION_BLOCK min_power_pwm_singl
+VAR_INPUT
+    Start : BOOL;          // Запуск (по фронту)
+    Stop : BOOL;           // Стоп
+    Pulse : REAL:= 0.1;          // Импульс в сек (0.05-60)
+    Pause : REAL:= 5;          // Пауза в сек 
+    min_power_sp : REAL:= 10;   // Уставка минимальной мощности
+    sensor : REAL;         // Текущее значение датчика
+    max_reach_time : REAL:= 30; // Максимальное время достижения уставки (сек)
+END_VAR
+
+VAR_OUTPUT
+    PwmOutput : BOOL;      // Выходной PWM сигнал
+    min_power_achieved_pulse : BOOL; // Достигнута уставка (импульс 1 сек)
+	min_power_achieved : BOOL; // Достигнута уставка
+    min_power_error : BOOL;    // Ошибка - уставка не достигнута за max_reach_time
+END_VAR
+
+VAR
+    StartRTrig : R_TRIG;   // Фронт Start
+    StopRTrig : R_TRIG;    // Фронт Stop
+    RsTrigger : RS;        
+    PulseTimer : TP;       // Таймер импульса
+    PauseTimer : TOF;      // Таймер паузы
+    AchievedPulse : TP;    // Таймер импульса достижения уставки
+    ErrorPulse : TP;       // Таймер импульса ошибки
+    ReachTimer : TON;      // Таймер контроля времени достижения уставки
+    power_achieved : BOOL; // Флаг достижения уставки
+    generation_active : BOOL;   // Флаг активной генерации импульсов
+    error_occurred : BOOL;      // Флаг возникновения ошибки
+    achieved_triggered : BOOL;  // Флаг, что импульс достижения уже был выдан
+    old_power_achieved : BOOL;  // Предыдущее состояние power_achieved для детекции фронта
+END_VAR
+
+StartRTrig(CLK := Start);
+StopRTrig(CLK := Stop);
+
+// RS-триггер с учетом приоритета стопа
+RsTrigger(SET := StartRTrig.Q, RESET1 := StopRTrig.Q);
+
+// Проверка достижения уставки
+power_achieved := (sensor >= min_power_sp) AND (min_power_sp > 0);
+
+// Логика обработки старта
+IF StartRTrig.Q THEN
+    // Сброс всех флагов при новом старте
+    error_occurred := FALSE;
+    min_power_error := FALSE;
+    achieved_triggered := FALSE;
+    generation_active := FALSE;
+    ReachTimer(IN := FALSE);
+    
+    // Проверяем состояние при старте
+    IF NOT power_achieved THEN
+        // Условие не выполнено - запускаем генерацию и таймер контроля
+        generation_active := TRUE;
+        ReachTimer(IN := TRUE, PT := REAL_TO_TIME(max_reach_time * 1000));
+    END_IF;
+END_IF;
+
+// Стоп сбрасывает флаги
+IF StopRTrig.Q THEN
+    generation_active := FALSE;
+    error_occurred := FALSE;
+    min_power_error := FALSE;
+    achieved_triggered := FALSE;
+    ReachTimer(IN := FALSE);
+    PulseTimer(IN := FALSE);
+    PauseTimer(IN := FALSE);
+END_IF;
+
+// Если достигнута уставка во время работы
+IF power_achieved AND generation_active AND NOT error_occurred THEN
+    generation_active := FALSE;     // Останавливаем генерацию
+    ReachTimer(IN := FALSE);        // Останавливаем таймер контроля
+    // Флаг achieved_triggered будет использован для генерации импульса
+END_IF;
+
+// Контроль превышения времени достижения уставки
+IF ReachTimer.Q AND NOT power_achieved AND generation_active THEN
+    error_occurred := TRUE;
+    generation_active := FALSE;
+    ReachTimer(IN := FALSE);
+END_IF;
+
+// Генерация импульса min_power_achieved (детектируем фронт power_achieved)
+// Импульс выдается только один раз в момент, когда power_achieved становится TRUE
+IF power_achieved AND NOT achieved_triggered AND NOT error_occurred THEN
+    achieved_triggered := TRUE;
+    AchievedPulse(IN := TRUE, PT := T#1S);
+ELSE
+    AchievedPulse(IN := FALSE, PT := T#1S);
+END_IF;
+
+min_power_achieved_pulse := AchievedPulse.Q;
+min_power_achieved := power_achieved;
+
+// Генерация импульса ошибки (детектируем фронт error_occurred)
+IF error_occurred AND NOT ErrorPulse.Q THEN
+    ErrorPulse(IN := TRUE, PT := T#1S);
+ELSE
+    ErrorPulse(IN := FALSE, PT := T#1S);
+END_IF;
+
+min_power_error := ErrorPulse.Q;
+
+// Управление PWM
+IF generation_active AND NOT error_occurred AND Pulse > 0 THEN
+    IF Pause > 0 THEN
+        // Режим с паузами
+        PulseTimer(IN := generation_active AND NOT PauseTimer.Q, PT := REAL_TO_TIME(Pulse * 1000));
+        PauseTimer(IN := PulseTimer.Q, PT := REAL_TO_TIME(Pause * 1000));
+        PwmOutput := PulseTimer.Q;
+    ELSE
+        // Непрерывный режим (без пауз)
+        PulseTimer(IN := FALSE);
+        PauseTimer(IN := FALSE);
+        PwmOutput := TRUE;
+    END_IF;
+ELSE
+    PwmOutput := FALSE;
+    PulseTimer(IN := FALSE);
+    PauseTimer(IN := FALSE);
+END_IF;

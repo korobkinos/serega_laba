@@ -1,0 +1,58 @@
+FUNCTION_BLOCK ai_scale
+VAR_INPUT
+	in: ARRAY[0..in_out_quantity] OF REAL;
+	ch_err: ARRAY[0..in_out_quantity] OF BYTE; 
+	settings: SENSOR_AI_SETTINGS;
+END_VAR
+VAR_OUTPUT
+	warning_min	:	ARRAY[0..in_out_quantity] OF BOOL;
+	warning_max	:	ARRAY[0..in_out_quantity] OF BOOL;
+	alarm_min	:	ARRAY[0..in_out_quantity] OF BOOL;
+	alarm_max	:	ARRAY[0..in_out_quantity] OF BOOL;
+END_VAR
+VAR
+	i: WORD;
+	in_filtered: ARRAY[0..in_out_quantity] OF REAL;
+	ai_filter: ARRAY[0..in_out_quantity] OF FILTER_R;
+END_VAR
+
+VAR_OUTPUT
+	out_r: ARRAY[0..in_out_quantity] OF REAL;
+END_VAR
+
+VAR CONSTANT
+	ai_error_code: WORD:= 16; //dec16 = 4-й бит в байте, всё что выше или равно это ошибка
+END_VAR
+
+FOR i:= 0 TO in_out_quantity DO
+	//фильтр сигнала 
+	ai_filter[i](
+			X:= in[i], 
+			T:= REAL_TO_TIME(settings.SENSOR[i].VALUE[average] * 1000), 
+			Y => in_filtered[i]
+			);
+			
+	//масштабирование		
+	out_r[i]:=scale_singl(
+							IN:= in_filtered[i],
+							XMIN:=settings.SENSOR[i].VALUE[min_value],
+							XMAX:=settings.SENSOR[i].VALUE[max_value],
+							YMIN:=settings.SENSOR[i].VALUE[min_scale],
+							YMAX:=settings.SENSOR[i].VALUE[max_scale]
+							);
+									
+	//определение аварийных и предупредительных пределов сигнала								
+	IF  settings.SENSOR[i].VALUE[min_warning] <> 0 THEN
+		warning_min[i]:= out_r[i] < settings.SENSOR[i].VALUE[min_warning];
+	END_IF					
+	IF  settings.SENSOR[i].VALUE[max_warning] <> 0 THEN
+		warning_max[i]:= out_r[i] > settings.SENSOR[i].VALUE[max_warning];
+	END_IF
+	IF settings.SENSOR[i].VALUE[min_alarm] <> 0 THEN
+		alarm_min[i]:= (out_r[i] < settings.SENSOR[i].VALUE[min_alarm]) OR ch_err[i] > ai_error_code;
+	END_IF
+	IF settings.SENSOR[i].VALUE[max_alarm] <> 0 THEN
+		alarm_max[i]:= (out_r[i] > settings.SENSOR[i].VALUE[max_alarm]) OR ch_err[i] > ai_error_code;
+	END_IF	
+	
+END_FOR

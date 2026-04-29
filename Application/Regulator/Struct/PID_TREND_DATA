@@ -1,0 +1,14 @@
+TYPE PID_TREND_DATA :
+STRUCT
+	DATA:ARRAY[0..7] OF REAL;
+	(*
+	0-PID_SET_POINT//Задание для регулятора
+	1-PID_SENSOR//Датчик регулятора
+	2-PID_OUT//Выход разсогласование регулятора
+	3-UP//Больше механизму
+	4-DOWN//Меньше механизму
+	5-PID_PROC //Указатель положения
+	6-spare // резерв
+	*)
+END_STRUCT
+END_TYPE

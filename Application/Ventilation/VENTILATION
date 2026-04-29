@@ -1,0 +1,29 @@
+PROGRAM VENTILATION
+VAR
+	ventilation : ventilation_singl;
+END_VAR
+
+ventilation(
+	vent_settings:= SETTINGS.vent_settings,	
+
+	block:= GVL_VENTILATION.block,
+	start:= GVL_VENTILATION.start OR GVL_IGNITION_SEQUENCE.start_ventilation,
+	start_post_emergency:= GVL_VENTILATION.start_post_emergency,
+	stop:= GVL_VENTILATION.stop,
+	reset_ventilation:= GVL_VENTILATION.reset OR GVL_VALVE.control_out[pzk_2],
+	stop:= GVL_VENTILATION.stop,
+	skip:= GVL_VENTILATION.skip,
+	fan_on_state := GVL_VALVE.open_state[vent_burner],   // Вентилятор включен
+	shiber_open_state := GVL_VALVE.open_state[air_shiber],   // Шибер открыт
+	shiber_closed_state := GVL_VALVE.closed_state[air_shiber],   // Шибер закрыт
+	
+	fan_on => GVL_VENTILATION.fan_on,
+	shiber_open => GVL_VENTILATION.shiber_open,
+	shiber_close => GVL_VENTILATION.shiber_close,
+	
+	time_actual => GVL_VENTILATION.time_actual,
+	time_left_sec => GVL_VENTILATION.time_left_sec,
+	
+	vent_state_decoded => GVL_VENTILATION.vent_state_decoded,
+	vent_state => GVL_VENTILATION.vent_state
+);

@@ -1,0 +1,24 @@
+{attribute 'qualified_only'}
+VAR_GLOBAL
+	block                  : BOOL;   // Запрет запуска вентиляции
+	start                  : BOOL;   // Запуск предпусковой вентиляции
+	start_post_emergency   : BOOL;   // Запуск послеаварийной вентиляции
+	stop                   : BOOL;   // Отмена вентиляции в процессе
+	reset			       : BOOL;   // Сброс признака "вентиляция проведена"
+	skip                   : BOOL;   // Пропуск вентиляции оператором
+
+	fan_on_state           : BOOL;   // Вентилятор включен
+	shiber_open_state      : BOOL;   // Шибер открыт
+	shiber_closed_state    : BOOL;   // Шибер закрыт
+	
+	
+	fan_on                 : BOOL;   // Импульс на включение вентилятора
+	shiber_open            : BOOL;   // Импульс на открытие шибера
+	shiber_close           : BOOL;   // Импульс на закрытие шибера
+
+	time_actual            : WORD;   // Остаток времени вентиляции, сек
+	time_left_sec          : DWORD;  // Остаток времени вентиляции, сек
+
+	vent_state_decoded     : VENT_STATE_STRUCT; // Расшифрованное состояние
+	vent_state             : DWORD;             // Битовая маска состояния
+END_VAR

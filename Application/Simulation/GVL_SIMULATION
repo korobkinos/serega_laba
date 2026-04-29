@@ -1,0 +1,8 @@
+{attribute 'qualified_only'}
+VAR_GLOBAL
+	burner_pilot_open:  BOOL; //имитация пламени горелки (BURNER)
+	burner_pilot_closed: BOOL; //имитация пламени горелки (BURNER)
+	 
+	ignition_ignit_open:  BOOL; //имитация пламени запальника (IGNITION)
+	ignition_ignit_closed:  BOOL; //имитация пламени запальника (IGNITION)
+END_VAR

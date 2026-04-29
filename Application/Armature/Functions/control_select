@@ -1,0 +1,37 @@
+FUNCTION_BLOCK control_select//Выбор управления для механизма
+VAR_INPUT
+	up_manual:BOOL;
+	down_manual:BOOL;
+	up_auto:BOOL;
+	down_auto:BOOL;
+	set_manual:BOOL;
+	set_auto:BOOL;
+END_VAR
+VAR_IN_OUT
+	mode:BOOL;//1=авто, 0=ручной
+END_VAR
+VAR_OUTPUT
+	up:BOOL;
+	down:BOOL;
+	
+END_VAR
+VAR
+	//trig:rs;
+END_VAR
+
+(*trig(	SET:=set_auto,
+		RESET1:=set_manual,
+		Q1=>mode);*)
+IF set_auto THEN
+	mode:= TRUE;
+END_IF
+IF set_manual THEN
+	mode:= FALSE;
+END_IF
+IF mode THEN
+	up:=up_auto;
+	down:=down_auto;
+ELSE
+	up:=up_manual;
+	down:=down_manual;	
+END_IF

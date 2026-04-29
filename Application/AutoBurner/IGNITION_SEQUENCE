@@ -1,0 +1,37 @@
+PROGRAM IGNITION_SEQUENCE
+VAR
+	ignition_sequence: ignition_sequence_singl;
+END_VAR
+
+ignition_sequence(
+	block := GVL_IGNITION_SEQUENCE.block OR GVL_PROTECT.main_alarm,
+	start := GVL_IGNITION_SEQUENCE.start,
+	stop := GVL_IGNITION_SEQUENCE.stop,
+	reset_error := GVL_IGNITION_SEQUENCE.reset,
+
+	use_fast_pressure := SETTINGS.use_fast_pressure,
+
+	// Обратная связь от вентиляции
+	vent_success := GVL_VENTILATION.vent_state_decoded.success,
+	vent_in_progress := GVL_VENTILATION.vent_state_decoded.in_progress,
+	vent_state_decoded := GVL_VENTILATION.vent_state_decoded,
+
+	// Обратная связь от опрессовки
+	pressure_success := GVL_PRESSURE.Pressure_state_structure.success,
+	pressure_in_progress := GVL_PRESSURE.Pressure_state_structure.in_progress,
+	pressure_state_decoded := GVL_PRESSURE.Pressure_state_structure,
+
+	// Настройки для расчёта watchdog
+	vent_settings := SETTINGS.vent_settings,
+	pressure_settings := SETTINGS.pres_settings,
+
+	// Выходные команды
+	start_ventilation => GVL_IGNITION_SEQUENCE.start_ventilation,
+	start_pressure => GVL_IGNITION_SEQUENCE.start_pressure,
+	start_pressure_fast => GVL_IGNITION_SEQUENCE.start_pressure_fast,
+	start_burner => GVL_IGNITION_SEQUENCE.start_burner,
+
+	current_step => GVL_IGNITION_SEQUENCE.current_step,
+	state_decoded => GVL_IGNITION_SEQUENCE.state_decoded,
+	state => GVL_IGNITION_SEQUENCE.state
+);

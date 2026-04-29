@@ -1,0 +1,80 @@
+PROGRAM REGULATOR
+VAR
+	BURNER_PID: ARRAY [0..PID_quantity] OF PID_singl;
+	PID_ON_RS:  ARRAY [0..PID_quantity] OF RS;
+	min_power: min_power_pwm_singl;
+	air_from_gas: air_from_gas_set;
+	
+	auto_set_cmd: ARRAY[0..PID_quantity] OF BOOL;
+	auto_reset_cmd: ARRAY[0..PID_quantity] OF BOOL;
+	
+	i: word;
+END_VAR
+
+FOR i:= 0 TO PID_quantity DO
+
+	//включить регулятор ШВ в автомат (с алгоритма розжига)
+	//BURNER_PID[burner_pAir].PID_EN
+	auto_set_cmd[i]:= GVL_REGULATOR.pid_control[i].auto_set;
+	auto_reset_cmd[i]:= GVL_REGULATOR.pid_control[i].man_set;
+
+	
+	auto_set_cmd[burner_pGas] := auto_set_cmd[burner_pGas] OR GVL_BURNER.GAZ_shiber_auto;
+	auto_set_cmd[burner_pAir] := auto_set_cmd[burner_pAir] OR GVL_BURNER.shiber_auto;
+	auto_reset_cmd[burner_pGas] := auto_reset_cmd[burner_pGas] OR GVL_BURNER.GAZ_shiber_manual;
+	auto_reset_cmd[burner_pAir] := auto_reset_cmd[burner_pAir] OR GVL_BURNER.shiber_manual;
+	
+	
+	PID_ON_RS[i](
+		SET:= auto_set_cmd[i], 
+		RESET1:= auto_reset_cmd[i], 
+		Q1 => GVL_REGULATOR.pid_ON[i]
+		);
+	
+	BURNER_PID[i](
+		PID_EN:= GVL_REGULATOR.pid_ON[i],
+		up_man:= GVL_REGULATOR.pid_control[i].man_up,
+		down_man:= GVL_REGULATOR.pid_control[i].man_down,
+		sensor:= GVL_REGULATOR.pid_control[i].trend.DATA[PID_TREND_PV],
+		settings:= SETTINGS.pid_settings[i],
+		up_out => GVL_REGULATOR.pid_control[i].up_out,
+		down_out => GVL_REGULATOR.pid_control[i].down_out,
+		data_trend => GVL_REGULATOR.pid_control[i].trend
+		);
+END_FOR
+
+//привязка регулятора к задвижке через карту соотношения
+reg_valve_bind(
+	ai_in_scale:= GVL_SCALE.AI_IN_SCALE, //аналоги
+	pid_control:= GVL_REGULATOR.pid_control,  //сигналы регулятора
+	map:= SETTINGS.reg_binding_map, //карта соотношения
+	value_control:= GVL_REGULATOR.reg_valve //
+	);  
+
+//выход на минимальную мощность
+
+min_power(
+	start:= GVL_REGULATOR.min_power_start,
+	stop:= GVL_REGULATOR.min_power_stop,
+	sensor:= GVL_REGULATOR.pid_control[burner_pGas].trend.DATA[PID_TREND_PV],
+	max_reach_time:= SETTINGS.max_reach_time, 
+	min_power_sp:= SETTINGS.min_power,
+	min_power_achieved => GVL_REGULATOR.min_power_active,
+	min_power_error => GVL_REGULATOR.min_power_error,
+	PwmOutput => GVL_REGULATOR.min_power_impulse_up
+	);
+	
+	//карта соотношения газ - воздух
+	air_from_gas(
+		gas_sensor:= GVL_REGULATOR.pid_control[burner_pGas].trend.DATA[PID_TREND_PV],
+		settings:= SETTINGS.gas_air_map,
+		air_set_point => GVL_REGULATOR.air_set_point,
+		shiber_percent => GVL_REGULATOR.air_percent_set_point
+	);
+	
+
+	
+	//задание для ШВ
+	SETTINGS.pid_settings[burner_pAir].VALUE[SP]:= GVL_REGULATOR.air_set_point;
+	SETTINGS.pid_settings[burner_posShiber].VALUE[SP]:= GVL_REGULATOR.air_percent_set_point;
+		

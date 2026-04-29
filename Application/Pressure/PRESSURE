@@ -1,0 +1,70 @@
+PROGRAM PRESSURE
+VAR
+	pressure_control: pressure_singl;
+END_VAR
+(*
+==============Полная опрессовка==============
+
+1. После старта опрессовки закрывается КБ.
+   Если выбран режим опрессовки через ПЗК-1, дополнительно закрывается ПЗК-1.
+2. Выполняется выдержка t_wait_1 и контроль отсутствия давления в линии.
+   За это время давление не должно достигать ни P_min, ни P_max.
+   Если давление появилось до начала опрессовки, считается, что ПЗК-1 не плотен.
+3. После этого подаётся давление:
+   - либо через КО,
+   - либо через ПЗК-1, в зависимости от выбранного режима.
+4. На этапе t_wait_2 давление должно достигнуть минимального уровня P_min,
+   но не должно достигнуть максимального уровня P_max.
+   Если P_min не достигнут, считается утечка.
+   Если уже достигнут P_max, давление слишком велико.
+5. На этапе t_wait_3 давление должно дойти до уровня P_max.
+   Если за это время P_max не достигнут, считается утечка.
+6. При успешном завершении устанавливается признак success
+   и формируется импульс full_success.
+
+==============Быстрая опрессовка===============
+
+1. После старта быстрой опрессовки выполняется та же подготовка арматуры,
+   что и при полной опрессовке:
+   закрывается КБ, при необходимости закрывается ПЗК-1,
+   затем контролируется отсутствие давления в линии в течение t_wait_1.
+2. После подачи давления выполняется только контроль достижения минимального давления.
+3. За время t_fast давление должно достигнуть уровня P_min.
+   Достижение P_max в быстрой опрессовке не требуется.
+4. Если за время t_fast уровень P_min не достигнут,
+   опрессовка считается неуспешной.
+5. При успешном завершении устанавливается признак success
+   и формируется импульс fast_success.
+*)
+
+pressure_control(
+		Pressure_sensor_in:=GVL_SCALE.AI_IN_SCALE[pressure_sensor],
+		abort:= GVL_PRESSURE.abort OR GVL_VALVE.control_out[pzk_2],
+		abort_block:=GVL_PRESSURE.abort_block,
+		block:=GVL_PRESSURE.block OR GVL_BURNER.boiler_in_process OR GVL_BURNER.boiler_run,
+		start:=GVL_PRESSURE.start OR  GVL_IGNITION_SEQUENCE.start_pressure,
+		skip:=GVL_PRESSURE.skip,
+		fast_auto:=GVL_PRESSURE.fast_auto OR GVL_BURNER.burner_start OR GVL_IGNITION_SEQUENCE.start_pressure_fast,
+		stop:= GVL_PRESSURE.stop,
+		KB_on_state:=GVL_VALVE.open_state[kb],
+		PZK_1_on_state:=GVL_VALVE.open_state[pzk_1],
+		p_max_active:=GVL_PRESSURE.p_max_active,
+		p_min_active:=GVL_PRESSURE.p_min_active,
+		Pressure_settings:=SETTINGS.pres_settings,
+		KB_on=>GVL_PRESSURE.KB_SET,
+		KB_off=>GVL_PRESSURE.KB_RESET,
+		KO_on=>GVL_PRESSURE.KO_SET,
+		KO_off=>GVL_PRESSURE.KO_RESET,
+		PZK_1_on=>GVL_PRESSURE.PZK_1_SET,
+		PZK_1_off=>GVL_PRESSURE.PZK_1_RESET,
+		P_max_out=>GVL_PRESSURE.P_max_active,
+		P_min_out=>GVL_PRESSURE.P_min_out,
+		pressure_state=>GVL_PRESSURE.Pressure_state,
+		Pressure_state_decoded => GVL_PRESSURE.Pressure_state_structure
+	);
+	
+//для графика, для панели собираем данные в массив 
+GVL_PRESSURE.trend_data[0]:= GVL_SCALE.AI_IN_SCALE[pressure_sensor];
+GVL_PRESSURE.trend_data[1]:= SETTINGS.pres_settings.VALUE[1]; //P_min
+GVL_PRESSURE.trend_data[2]:= SETTINGS.pres_settings.VALUE[2]; //P_max
+	

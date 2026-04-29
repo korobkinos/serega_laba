@@ -1,0 +1,35 @@
+FUNCTION_BLOCK protect_main
+VAR_INPUT
+	enable:BOOL;//Защита активирована
+	signal:BOOL;//Аварийныйы сигнал
+	control:BOOL;//Установить контроль
+	execute_set:BOOL;//Ввести защиту
+	execute_reset:BOOL;//Вывести защиту
+	terminate_time:REAL;//Время автоввода защиты при ее выведении (0 - нет автоввода)
+	delay_time:REAL;//Время задержки срабатывания защиты
+	alarm_reset:BOOL;//Сброс защиты
+END_VAR
+
+VAR_OUTPUT
+	execute_state:BOOL;//Состояние введена/выведена
+	alarm:BOOL;//Срабатывает, когда есть контроль и введена
+	warning:BOOL;//Срабатывает, когда есть контроль но выведена	
+END_VAR
+VAR
+	protect_singl:protect_singl;
+	protect_on_off_singl:protect_on_off_singl;
+END_VAR
+
+IF enable THEN
+	protect_on_off_singl(	man_on:=execute_set,
+							man_off:=execute_reset,
+							terminate_time:=terminate_time,
+							zachita_vvedena:=execute_state);
+	protect_singl(	signal_groupe_param:=signal,
+					ctrl_on:=control,
+					protect_execute:=execute_state,
+					sbros_av:=alarm_reset,
+					delay_time:=delay_time,
+					protect_active=>alarm,
+					alarm_active=>warning);
+END_IF

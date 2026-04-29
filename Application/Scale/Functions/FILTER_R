@@ -1,0 +1,28 @@
+FUNCTION_BLOCK FILTER_R
+VAR_INPUT
+	X : REAL;
+	T : TIME:= T#2S;
+END_VAR
+VAR_OUTPUT
+	Y : REAL;
+END_VAR
+VAR
+	last : DWORD;
+	tx: DWORD;
+	init: BOOL;
+	Yi : REAL;
+END_VAR
+
+(* системное время *)
+tx := T_PLC_MS();
+
+IF T = t#0s THEN
+	init := TRUE;
+	Yi := X;
+ELSE
+	Yi := Yi + (X - Y) * DWORD_TO_REAL(tx - last) / TIME_TO_REAL(T);
+END_IF;
+last := tx;
+Y:= Yi; 
+
+

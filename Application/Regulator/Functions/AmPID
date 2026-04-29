@@ -1,0 +1,354 @@
+FUNCTION_BLOCK AmPID
+VAR_INPUT
+	sensor       : REAL;   // Текущее значение регулируемой величины
+	noise        : REAL;   // Зона нечувствительности
+	SP           : REAL;   // Уставка
+
+	Kp           : REAL := 0.5;   // Коэффициент пропорциональной части
+	Kd           : REAL := 1.0;   // Коэффициент дифференциальной части
+	Td           : REAL := 1.0;   // Время окна для расчета производной, с
+
+	T_pause_max  : REAL := 5.0;   // Максимальная пауза между импульсами, с
+	min_pause    : REAL := 0.1;   // Минимальная пауза между импульсами, с
+
+	min_work     : REAL := 0.1;   // Минимальная длительность импульса, с
+	max_work     : REAL := 1.0;   // Максимальная длительность импульса, с
+
+	E_negative   : REAL := -10.0; // Нижнее ограничение управляющего воздействия
+	E_positive   : REAL := 10.0;  // Верхнее ограничение управляющего воздействия
+
+	ON           : BOOL;          // Разрешение работы регулятора
+	Kd_steam     : REAL;          // Пока не используется, оставлен для совместимости
+	luft         : REAL;          // Компенсация люфта, с
+END_VAR
+
+VAR_OUTPUT
+	up           : BOOL;   // Команда на увеличение
+	down         : BOOL;   // Команда на уменьшение
+	E_total      : REAL;   // Итоговое управляющее воздействие
+END_VAR
+
+VAR
+	// ---------------- Нормализованные параметры ----------------
+	kp_abs            : REAL;
+	kd_abs            : REAL;
+	td_abs            : REAL;
+	noise_abs         : REAL;
+	min_work_abs      : REAL;
+	max_work_abs      : REAL;
+	min_pause_abs     : REAL;
+	t_pause_max_abs   : REAL;
+	luft_abs          : REAL;
+
+	// ---------------- Ошибка регулирования ----------------
+	E_P               : REAL;   // Ошибка: SP - sensor
+	E_P_component     : REAL;   // Пропорциональная составляющая
+	in_deadband       : BOOL;   // Находимся в зоне нечувствительности
+	error_negative    : BOOL;   // Признак отрицательной ошибки
+	sign_changed      : BOOL;   // Признак смены знака ошибки
+
+	// ---------------- Дифференциальная часть ----------------
+	d_window_active   : BOOL;   // Активно окно измерения производной
+	d_start_value     : REAL;   // Значение сигнала в начале окна
+	d_raw             : REAL;   // Разность сигнала за время Td
+	d_scaled          : REAL;   // Производная с учетом Kd и Td
+	d_filtered        : REAL;   // Отфильтрованная производная
+	alpha             : REAL;   // Коэффициент EMA-фильтра
+
+	d_tof             : TOF;
+	d_r_trig          : R_TRIG;
+	d_f_trig          : F_TRIG;
+
+	// ---------------- Итоговое управляющее воздействие ----------------
+	control_effort    : REAL;   // Итоговое воздействие до преобразования в импульс
+	scale             : REAL;   // Масштаб для расчета длительности импульса
+	error_adder        : REAL;   // Накопление мелкой ошибки
+
+	// ---------------- Расчет импульса ----------------
+	t_impact          : REAL;   // Длительность управляющего импульса
+	t_pause           : REAL;   // Пауза между импульсами
+
+	up_pulse          : TP;
+	down_pulse        : TP;
+	pause_tof         : TOF;
+	zone_tof          : TOF;
+
+	impact_r_trig     : R_TRIG;
+	impact_f_trig     : F_TRIG;
+
+	// ---------------- Отслеживание смены знака ошибки ----------------
+	sign_r_trig       : R_TRIG;
+	sign_f_trig       : F_TRIG;
+
+	// ---------------- Компенсация люфта ----------------
+	last_direction    : INT;    // 0 - нет движения, 1 - последнее движение вверх, -1 - вниз
+	luft_up           : REAL;   // Добавка к импульсу вверх
+	luft_down         : REAL;   // Добавка к импульсу вниз
+
+	up_r_trig         : R_TRIG;
+	down_r_trig       : R_TRIG;
+END_VAR
+
+// ====================================================================
+// 1. Нормализация параметров
+// ====================================================================
+
+kp_abs := ABS(Kp);
+kd_abs := ABS(Kd);
+td_abs := ABS(Td);
+noise_abs := ABS(noise);
+min_work_abs := ABS(min_work);
+max_work_abs := ABS(max_work);
+min_pause_abs := ABS(min_pause);
+t_pause_max_abs := ABS(T_pause_max);
+luft_abs := ABS(luft);
+
+// Защита от некорректных настроек
+IF max_work_abs < min_work_abs THEN
+	max_work_abs := min_work_abs;
+END_IF;
+
+IF t_pause_max_abs < min_pause_abs THEN
+	t_pause_max_abs := min_pause_abs;
+END_IF;
+
+
+// ====================================================================
+// 2. Расчет текущей ошибки и признаков состояния
+// ====================================================================
+
+E_P := SP - sensor;
+E_P_component := kp_abs * E_P;
+
+in_deadband := ABS(E_P) <= noise_abs;
+error_negative := E_P < 0.0;
+
+// Отслеживание смены знака ошибки
+sign_r_trig(CLK := error_negative);
+sign_f_trig(CLK := error_negative);
+sign_changed := sign_r_trig.Q OR sign_f_trig.Q;
+
+
+// ====================================================================
+// 3. Расчет дифференциальной составляющей
+// Производная оценивается как изменение сигнала за интервал Td
+// ====================================================================
+
+IF td_abs > 0.0 THEN
+	d_tof(IN := NOT d_window_active, PT := REAL_TO_TIME(td_abs * 1000.0), Q => d_window_active);
+ELSE
+	d_window_active := FALSE;
+END_IF;
+
+// Фронты окна измерения производной
+d_r_trig(CLK := d_window_active);
+d_f_trig(CLK := d_window_active);
+
+// В начале окна запоминаем текущее значение сигнала
+IF d_r_trig.Q THEN
+	d_start_value := sensor;
+END_IF;
+
+// В конце окна рассчитываем изменение сигнала
+IF d_f_trig.Q THEN
+	d_raw := d_start_value - sensor;
+END_IF;
+
+// Масштабирование производной
+IF td_abs > 0.0 THEN
+	d_scaled := kd_abs * d_raw / td_abs;
+
+	// Коэффициент EMA-фильтра для сглаживания дифференциальной части
+	alpha := LIMIT(0.01, 2.0 / (20.0 * MIN(td_abs, 10.0)), 0.2);
+ELSE
+	d_scaled := 0.0;
+	alpha := 0.1;
+END_IF;
+
+// Сглаживание дифференциальной составляющей
+d_filtered := alpha * d_scaled + (1.0 - alpha) * d_filtered;
+
+
+// ====================================================================
+// 4. Формирование итогового управляющего воздействия
+// ====================================================================
+
+control_effort := E_P_component + d_filtered + error_adder;
+
+// Ограничение управляющего воздействия
+IF control_effort > E_positive THEN
+	control_effort := E_positive;
+ELSIF control_effort < E_negative THEN
+	control_effort := E_negative;
+END_IF;
+
+E_total := control_effort;
+
+
+// ====================================================================
+// 5. Подготовка масштаба и компенсации люфта
+// ====================================================================
+
+// Для положительной и отрицательной части может быть разный диапазон
+IF control_effort < 0.0 THEN
+	scale := ABS(E_negative);
+ELSE
+	scale := ABS(E_positive);
+END_IF;
+
+// Компенсация люфта добавляется только при смене направления
+luft_up := 0.0;
+luft_down := 0.0;
+
+IF t_impact <> 0.0 THEN
+	IF last_direction = -1 THEN
+		luft_up := luft_abs;
+	END_IF;
+
+	IF last_direction = 1 THEN
+		luft_down := luft_abs;
+	END_IF;
+END_IF;
+
+
+// ====================================================================
+// 6. Расчет длительности импульса
+// ====================================================================
+
+t_impact := proportion_simpl(
+	X_sensor := ABS(control_effort),
+	X_min    := 0.0,
+	X_max    := scale,
+	Y_min    := 0.0,
+	Y_max    := max_work_abs
+);
+
+
+// ====================================================================
+// 7. Накопление мелкой ошибки
+// Если ошибка есть, но рассчитанный импульс меньше минимально допустимого,
+// накапливаем воздействие в FINE_ADDER
+// ====================================================================
+
+IF NOT ON THEN
+	error_adder := 0.0;
+
+ELSIF in_deadband THEN
+	error_adder := 0.0;
+
+ELSIF (t_impact > 0.0) AND (t_impact < min_work_abs) AND d_f_trig.Q THEN
+	error_adder := error_adder + E_P_component;
+
+	// Ограничение накопителя, чтобы он не разрастался бесконечно
+	IF error_adder > E_positive THEN
+		error_adder := E_positive;
+	ELSIF error_adder < E_negative THEN
+		error_adder := E_negative;
+	END_IF;
+END_IF;
+
+
+// ====================================================================
+// 8. Запрет формирования импульса
+// Импульс не выдаем:
+// - в зоне нечувствительности
+// - при смене знака ошибки
+// ====================================================================
+
+IF in_deadband OR sign_changed THEN
+	t_impact := 0.0;
+END_IF;
+
+
+// ====================================================================
+// 9. Расчет паузы между импульсами
+// Чем больше импульс, тем меньше пауза
+// ====================================================================
+
+impact_r_trig(CLK := t_impact >= min_work_abs);
+
+t_pause := proportion_simpl(
+	X_sensor := t_impact,
+	X_min    := min_work_abs,
+	X_max    := max_work_abs,
+	Y_min    := t_pause_max_abs,
+	Y_max    := min_pause_abs
+);
+
+// При входе в рабочую зону можно временно убрать паузу,
+// чтобы не было лишней задержки перед первым импульсом
+zone_tof(IN := impact_r_trig.Q, PT := REAL_TO_TIME(min_pause_abs * 1000.0));
+IF zone_tof.Q THEN
+	t_pause := 0.0;
+END_IF;
+
+
+// ====================================================================
+// 10. Генерация импульсов управления
+// ====================================================================
+
+IF NOT ON THEN
+	up_pulse(IN := FALSE, PT := T#0S);
+	down_pulse(IN := FALSE, PT := T#0S);
+
+	up := FALSE;
+	down := FALSE;
+
+	last_direction := 0;
+
+ELSE
+	up_pulse(
+		IN := (control_effort > 0.0)
+		      AND (t_impact >= min_work_abs)
+		      AND NOT pause_tof.Q
+		      AND NOT zone_tof.Q
+		      AND NOT down_pulse.Q,
+		PT := REAL_TO_TIME((t_impact + luft_up) * 1000.0)
+	);
+
+	down_pulse(
+		IN := (control_effort < 0.0)
+		      AND (t_impact >= min_work_abs)
+		      AND NOT pause_tof.Q
+		      AND NOT zone_tof.Q
+		      AND NOT up_pulse.Q,
+		PT := REAL_TO_TIME((t_impact + luft_down) * 1000.0)
+	);
+
+	up := up_pulse.Q;
+	down := down_pulse.Q;
+END_IF;
+
+
+// ====================================================================
+// 11. Формирование паузы после окончания импульса
+// ====================================================================
+
+pause_tof(IN := (up OR down), PT := REAL_TO_TIME(t_pause * 1000.0));
+
+
+// ====================================================================
+// 12. Запоминание последнего направления движения
+// Нужно для компенсации люфта при реверсе
+// ====================================================================
+
+up_r_trig(CLK := up);
+down_r_trig(CLK := down);
+
+IF up_r_trig.Q THEN
+	last_direction := 1;
+END_IF;
+
+IF down_r_trig.Q THEN
+	last_direction := -1;
+END_IF;
+
+
+// ====================================================================
+// 13. Сброс накопителя после фактического управляющего импульса
+// ====================================================================
+
+impact_f_trig(CLK := up OR down);
+IF impact_f_trig.Q THEN
+	error_adder := 0.0;
+END_IF;

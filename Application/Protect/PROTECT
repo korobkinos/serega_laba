@@ -1,0 +1,136 @@
+PROGRAM PROTECT
+VAR
+	
+	p_gas_control_delay_ton			:	TON; // задержка на ввод защиты по газу
+	p_air_control_delay_ton			:	TON; // задержка на ввод защиты по воздуху
+	flame_control_delay_ton			:	TON; // задержка на ввод защиты по пламени горелки
+	
+	rt: ARRAY[0..31] OF f_trig; //позитивный фронт
+	ft: ARRAY[0..31] OF r_trig; // негативный фронт
+
+	protect: ARRAY[0..burner_protect_quantity] OF protect_main;
+	i,j: WORD;	
+	test_mode_ft: F_TRIG;
+	test_mode_rt: R_TRIG;
+	
+	protect_alarm_tmp: ARRAY[0..burner_protect_quantity] OF BOOL;
+	
+	cmd_execute_set: 	ARRAY[0..burner_protect_quantity] OF BOOL;
+	cmd_execute_reset: 	ARRAY[0..burner_protect_quantity] OF BOOL;
+	
+	protect_execute_set_test_mode: 	ARRAY[0..burner_protect_quantity] OF BOOL;
+	protect_execute_set_test_mode_fp: ARRAY[0..burner_protect_quantity] OF R_TRIG;
+	
+	protect_execute_reset_test_mode: ARRAY[0..burner_protect_quantity] OF BOOL;
+	protect_execute_reset_test_mode_fp: ARRAY[0..burner_protect_quantity] OF R_TRIG;
+	
+	protect_control_test_mode: ARRAY[0..burner_protect_quantity] OF BOOL;
+	
+	one_cycle_done_set: BOOL;      // флаг завершения установки импульсов SET
+	one_cycle_done_reset: BOOL;    // флаг завершения установки импульсов RESET
+END_VAR
+
+
+//===========================================================================
+// привязка датчиков к защатам (вызов экшена)
+//===========================================================================
+
+sensor_to_protect();
+
+
+//ввод/вывод защит
+//подача команды на ПЗК-2
+rt[pzk_2](CLK:= GVL_VALVE.control_out[pzk_2]);
+ft[pzk_2](CLK:= GVL_VALVE.control_out[pzk_2]); 
+ 
+//===========================================================================
+// ввод-вывод защит (вызов экшена)
+//===========================================================================
+
+control();
+
+	
+//===========================================================================
+// Режим тест защит (вызов экшена)
+//===========================================================================
+test_protect();
+
+//===========================================================================
+// Основной цикл вызова функций защит
+//===========================================================================
+
+//вызов функции защит и передача параметров
+FOR i:= 0 TO burner_protect_quantity DO	
+	
+    // Берем команды из настроек
+    cmd_execute_set[i] := SETTINGS.protect_execute_set[i];
+    cmd_execute_reset[i] := SETTINGS.protect_execute_reset[i];
+    
+    // Объединяем с командами от тестового режима
+    cmd_execute_set[i] := cmd_execute_set[i] OR protect_execute_set_test_mode_fp[i].Q;
+    cmd_execute_reset[i] := cmd_execute_reset[i] OR protect_execute_reset_test_mode_fp[i].Q;
+    
+	
+	//При аварии или штатной останове горелки снимаем с контроля
+	IF GVL_BURNER.burner_stop OR GVL_IGNITION_SEQUENCE.stop OR GVL_PROTECT.main_alarm THEN
+		protect[i].control:= FALSE;
+	END_IF
+	
+    // Вызов функции защиты
+    protect[i](
+        enable:= SETTINGS.protect_enable[i],           // включение - отключение защиты
+        execute_set:= cmd_execute_set[i],              // Ввести защиту
+        execute_reset:= cmd_execute_reset[i],          // Вывести защиту		
+        alarm_reset:= GVL_PROTECT.protect_alarm_reset OR GVL_BURNER.burner_start, // сброс (квитирование)
+        delay_time:= SETTINGS.protect_delay_time[i],   // задержка на срабатывание
+        alarm => GVL_PROTECT.protect_alarm_out[i],     // выход алармов (введена + сработала = отключение арматуры)
+        warning => GVL_PROTECT.protect_warning_out[i], // выход варнинг (выведена + сработала = предупреждение для оператора)
+        execute_state => GVL_PROTECT.protect_execure_state_out[i]  // состояние введена (0) - выведена (1)
+    );
+    
+    // Сохраняем алармы для подсчета
+    protect_alarm_tmp[i] := protect[i].alarm;
+    
+    // Собираем состояния "на контроле" для визуализации
+    GVL_PROTECT.protect_control[i] := protect[i].control;
+    
+    // Собираем состояния датчиков для визуализации
+    GVL_PROTECT.protect_signal[i] := protect[i].signal;
+    
+END_FOR
+
+//===========================================================================
+// Формирование общего аларма
+//===========================================================================
+
+// "АВАРИЯ" - отключение горелки
+GVL_PROTECT.main_alarm := DWORD_TO_BOOL(
+    CountElements(
+        arrData:= protect_alarm_tmp,      // массив булей 
+        startIdx:= 0,                     // стартовый индекс массива
+        endIdx:= burner_protect_quantity  // конечный индекс
+    )
+);
+
+
+//===========================================================================
+// Сброс импульсов SET и RESET от тестового режима (дополнительная защита)
+//===========================================================================
+
+// Сбрасываем импульсы SET тестового режима после того, как они отработали
+IF NOT SETTINGS.test_mode THEN
+    FOR j:= 0 TO burner_protect_quantity DO
+        // Убеждаемся, что все импульсы SET сброшены при выходе из тестового режима
+        protect_execute_set_test_mode_fp[j](CLK:= FALSE);
+    END_FOR
+    one_cycle_done_set := FALSE;
+END_IF
+
+// Сбрасываем импульсы RESET тестового режима после того, как они отработали
+IF SETTINGS.test_mode THEN
+    FOR j:= 0 TO burner_protect_quantity DO
+        // Убеждаемся, что все импульсы RESET сброшены при входе в тестовый режим
+        protect_execute_reset_test_mode_fp[j](CLK:= FALSE);
+    END_FOR
+    one_cycle_done_reset := FALSE;
+END_IF

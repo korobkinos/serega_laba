@@ -1,0 +1,17 @@
+//{attribute 'qualified_only'}
+VAR_GLOBAL CONSTANT
+	counter_armature: BYTE := 31; //кол-во арматуры в горелке
+	//Биты BURNER_NUMBER_SETTINGS
+	pzk_1									:		WORD:=0;			//Есть ПЗК-1
+	pzk_2									:		WORD:=1;			//Есть ПЗК-2
+	kb										:		WORD:=2;			//Есть КБ
+	ko										:		WORD:=3;			//Есть КО
+	kz										:		WORD:=4;			//Есть КЗ
+	ignit									:		WORD:=5;			//Есть запальник (наличие пламени запальника - при имитации)
+	air_shiber								:		WORD:=6;			//Есть ШВ
+	gas_shiber								:		WORD:=7;			//Есть газовая заслонка
+	vent_burner								:		WORD:=8;			//Есть вентилятор горелки
+	pilot									:		WORD:=9;			//Признак растопочной
+	spark									:		WORD:=13;			//Искроразрядник
+
+END_VAR

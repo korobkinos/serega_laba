@@ -1,0 +1,49 @@
+
+//выделение фронта для кнопки "тест защит"
+test_mode_rt(CLK:= SETTINGS.test_mode);
+test_mode_ft(CLK:= SETTINGS.test_mode);
+
+// При включении тестового режима - формируем импульсы SET (ввод защит)
+IF test_mode_rt.Q THEN
+    FOR j:= 0 TO burner_protect_quantity DO
+        protect_execute_reset_test_mode_fp[j](CLK:= TRUE);
+    END_FOR
+    one_cycle_done_set := FALSE;
+END_IF
+
+// При выключении тестового режима - формируем импульсы RESET (вывод защит)
+IF test_mode_ft.Q THEN
+    FOR j:= 0 TO burner_protect_quantity DO
+        protect_execute_set_test_mode_fp[j](CLK:= TRUE);
+    END_FOR
+    one_cycle_done_reset := FALSE;
+END_IF
+
+// Сбрасываем входы детекторов фронта после отработки импульсов
+IF NOT test_mode_rt.Q AND NOT test_mode_ft.Q THEN
+    // Если нет активных фронтов, сбрасываем все CLK в FALSE
+    FOR j:= 0 TO burner_protect_quantity DO
+        IF NOT one_cycle_done_set THEN
+            protect_execute_set_test_mode_fp[j](CLK:= FALSE);
+        END_IF
+        IF NOT one_cycle_done_reset THEN
+            protect_execute_reset_test_mode_fp[j](CLK:= FALSE);
+        END_IF
+    END_FOR
+    
+    // Устанавливаем флаги завершения
+    IF NOT one_cycle_done_set THEN
+        one_cycle_done_set := TRUE;
+    END_IF
+    IF NOT one_cycle_done_reset THEN
+        one_cycle_done_reset := TRUE;
+    END_IF
+END_IF
+
+// Управление контролем защит в зависимости от режима теста
+IF SETTINGS.test_mode THEN
+    // Если выбран режим "тест защит", то все защиты на контроле
+    FOR j:= 0 TO burner_protect_quantity DO
+        protect[j].control := TRUE;
+    END_FOR
+END_IF

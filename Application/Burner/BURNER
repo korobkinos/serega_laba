@@ -1,0 +1,71 @@
+PROGRAM BURNER
+
+VAR CONSTANT
+	ignit_ok: WORD:= 0;
+	pzk_2_closed : WORD:= 1;
+END_VAR
+
+VAR
+	burner: burner_singl;
+	fp: ARRAY[0..31] OF R_TRIG;
+	fn: ARRAY[0..31] OF F_TRIG;
+END_VAR
+
+burner(
+	start_block:= GVL_BURNER.burner_block,
+	ignition_flame:= GVL_IGNITION.ignition_flame,
+	pilot_flame:= GVL_IGNITION.pilot_flame,
+	PZK_1_open:= GVL_VALVE.open_state[pzk_1],
+	shiber_open_state:= GVL_VALVE.open_state[air_shiber] OR GVL_REGULATOR.min_power_active,
+	shiber_closed_state:= GVL_VALVE.closed_state[air_shiber],
+	ignition_error:= GVL_IGNITION.Ignition_state.1, //1 - неудачный розжиг
+	burner_control_settings:= SETTINGS.burner_settings,
+	PZK_2_open:= GVL_VALVE.open_state[pzk_2] AND NOT SETTINGS.test_mode,
+	start:= GVL_BURNER.burner_start OR GVL_IGNITION_SEQUENCE.start_burner,
+	stop:= GVL_BURNER.burner_stop OR GVL_PROTECT.main_alarm OR GVL_IGNITION_SEQUENCE.stop,
+	shiber_error:= GVL_VALVE.error_state[air_shiber],
+	stop_block:= GVL_BURNER.burner_stop_block,
+	ventilator_state:= GVL_VALVE.open_state[vent_burner],
+	GAZ_shiber_open_state:= GVL_VALVE.open_state[gas_shiber] OR GVL_REGULATOR.min_power_active,
+	GAZ_shiber_closed_state:= GVL_VALVE.closed_state[gas_shiber],
+	GAZ_shiber_error:= GVL_VALVE.error_state[gas_shiber],
+	pilot_protect_on:= GVL_PROTECT.protect_control[pilot_p],
+	ignition_ready:= GVL_IGNITION.Ignition_state.2, //успешный розжиг запальника
+	kz_open:= GVL_VALVE.open_state[kz],
+	boiler_alarm:= SETTINGS.alarm_stop,
+		
+	burner_work => GVL_BURNER.boiler_run,
+	PZK_1_on => GVL_BURNER.PZK_1_SET,
+	PZK_1_off => GVL_BURNER.PZK_1_RESET,
+	PZK_2_on => GVL_BURNER.PZK_2_SET,
+	PZK_2_off => GVL_BURNER.PZK_2_RESET,
+	
+	shiber_open_out=> GVL_BURNER.shiber_open,
+	shiber_closed_out=> GVL_BURNER.shiber_closed,
+	shiber_auto=> GVL_BURNER.shiber_auto,
+	shiber_manual=> GVL_BURNER.shiber_manual,
+	GAZ_shiber_open_out=> GVL_BURNER.GAZ_shiber_open,
+	GAZ_shiber_closed_out=> GVL_BURNER.GAZ_shiber_closed,
+	
+	GAZ_shiber_auto=> GVL_REGULATOR.min_power_start,//GVL_BURNER.GAZ_shiber_auto,
+	GAZ_shiber_auto=> GVL_BURNER.GAZ_shiber_auto,
+	
+	GAZ_shiber_manual=> GVL_REGULATOR.min_power_stop,//GVL_BURNER.GAZ_shiber_manual,
+	GAZ_shiber_manual=> GVL_BURNER.GAZ_shiber_manual,
+	
+	Ignition_start=> GVL_BURNER.Ignition_SET,
+	Ignition_stop=> GVL_BURNER.Ignition_RESET,
+	ventilator_start=> GVL_BURNER.ventilator_burner_on,
+	ventilator_stop=> GVL_BURNER.ventilator_burner_off,
+	burner_state=> GVL_BURNER.burner_control_state,
+	);
+	
+GVL_BURNER.boiler_in_process:= GVL_BURNER.burner_control_state.0; //горелка в розжиге
+
+//имитация пламени горелки
+IF SETTINGS.armature_simulation THEN
+	//в режиме имитации когда появляется запальник
+	GVL_SIMULATION.burner_pilot_open:= GVL_VALVE.open_state[ignit] AND GVL_VALVE.control_out[pzk_2];
+	//когда закрыт ПЗК-2, то и пламя тоже гаснет и открыт ПЗК-2
+	GVL_SIMULATION.burner_pilot_closed:= GVL_VALVE.closed_state[pzk_2];//fp[pzk_2_closed].Q;//GVL_VALVE.closed[pilot]:= fp[pzk_2_closed].Q;
+END_IF
