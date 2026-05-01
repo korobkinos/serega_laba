@@ -16,18 +16,18 @@ END_VAR
 
 IF terminate_time > 0 THEN
 	termination_ton(
-		IN := protect_execute,
+		IN := NOT protect_execute,
 		PT := REAL_TO_TIME(terminate_time * 1000),
 		Q => ton_active
 	);
+ELSE
+	ton_active := FALSE;
 END_IF
 
-// Установка (ввести защиту)
-IF man_set THEN
-	protect_execute := TRUE;
-END_IF
-
-// Сброс (вывести защиту) или автоввод по таймеру
-IF man_reset OR ton_active THEN
+// Приоритет: ручной вывод > ручной ввод/автоввод
+IF man_reset THEN
 	protect_execute := FALSE;
+
+ELSIF man_set OR ton_active THEN
+	protect_execute := TRUE;
 END_IF

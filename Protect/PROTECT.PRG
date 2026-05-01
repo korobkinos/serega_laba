@@ -17,6 +17,7 @@ protect(
 	enable := SETTINGS.protect_enable,
 	execute_set := SETTINGS.protect_execute_set,
 	execute_reset := SETTINGS.protect_execute_reset,
+	terminate_time := SETTINGS.protect_terminate_time,
 	alarm_reset := GVL_PROTECT.protect_alarm_reset,
 	delay_time := SETTINGS.protect_delay_time,
 	alarm => GVL_PROTECT.protect_alarm_out,
